@@ -8,7 +8,7 @@ require 'yaml'        # journal posts will be YAML files to accommodate metadata
 require 'erb'         # ERB will be used for templating
 
 require 'rubygems'
-require 'feedtools'   # feed generation
+#require 'feedtools'   # feed generation
 require 'rdiscount'   # fast Markdown parsing
 #require 'bluecloth'  # slow Markdown parsing
 #Markdown = BlueCloth
@@ -43,7 +43,7 @@ class Turbine
 
   def initialize(site_path)
     @site_path = File.expand_path(site_path)
-    @config = YAML.load_file(File.join_path(@site_path, 'site.config')
+    @config = YAML.load_file(File.join(@site_path, 'site.config'))
     @log = Logger.new(STDOUT)
 
     if $options[:verbose]
@@ -86,7 +86,7 @@ class Turbine
       if file =~ /(\w+)\.page/
         path = File.join(@site_path, file)
 
-        File.open(File.join(@site_path, $1, '.html'), 'w') do |f|
+        File.open(File.join(@site_path, "#{$1}.html"), 'w') do |f|
           f << generate_page(parse_page(path))
         end
 
@@ -107,25 +107,21 @@ class Turbine
         if File.basename(path)[0] == ?.
           Find.prune
         else
-          if path =~ /\w+\.post/
-            File.open(File.join(path, 'index.html'), 'w') do |f|
-              f << generate_directory_index(path)
-            end
-
-            @log.debug("    generated an index for #{path}")
-          end
+          generate_directory_index(path)
         end
       else
-        post = parse_post(path)
+        if path =~ /\w+\.post/
+          post = parse_post(path)
 
-        page = {}
-        page[:body] = generate_post(post)
+          page = {}
+          page[:body] = generate_post(post)
 
-        File.open(path.gsub('.post', '.html'), 'w') do |f|
-          f << generate_page(page)
+          File.open(path.gsub('.post', '.html'), 'w') do |f|
+            f << generate_page(page)
+          end
+
+          @log.debug("    generated a post from #{path}")
         end
-
-        @log.debug("    generated a post from #{path}")
       end
     end
   end
@@ -139,7 +135,7 @@ class Turbine
     page[:body] = ""
     
     @posts.keys.sort.reverse.each_with_index do |date, i|
-      if i >= @cache[:front_page_entries]
+      if i >= @config[:front_page_entries]
         break
       else
         page[:body] << generate_post(@posts[date])
@@ -152,30 +148,49 @@ class Turbine
   end
 
   # Create an index page for a given directory.
+  #
+  # NOTE: This must be run after Turbine#generate_posts().
   def generate_directory_index(dir)
-    links = []
+    @log.debug("    creating an index for #{dir}")
+    link_root = dir.gsub(@config[:master_root], '')
+    
+    links = {}
 
+    # Construct a list of links.
     Dir.foreach(dir) do |entry|
       unless ['.', '..'].include?(entry)
-        if File.directory?(entry) || entry =~ /\w+\.html/
-          links << entry
+        if File.directory?(File.join(dir, entry))
+          @log.debug("      adding entry for #{entry}")
+          links[entry] = File.join(link_root, entry)
+        end
+        
+        if entry =~ /(\d{2})(\d{2})\.post/
+          @log.debug("      adding entry for #{entry}")
+          links["#{$1}:#{$2}"] = File.join(link_root, entry.gsub('post', 'html'))
         end
       end
     end
 
-    page[:title] = "Archive for #{dir}"
+    page = {}
     page[:body] = ''
 
-    links.sort.reverse.each do |link|
-      page[:body] << "<a href='#{link}'>#{link}</a>"
+    # If we're at the top of the 'posts' directory, assign the page the title
+    # of @config[:archive_title].
+    if File.join(@site_path, @config[:posts]) == dir
+      page[:title] = @config[:archive_title]
+    else
+      page[:title] = File.basename(dir)
     end
 
-    return generate_page(page)
-  end
+    links.keys.sort.reverse.each do |k|
+      page[:body] << "<h3><a href='#{links[k]}'>#{k}</a></h3>"
+    end
 
-  # Create an reverse-chronologically sorted, nested archive of posts.
-  def generate_archive
-#    generate_directory_index(File.join(@site_path, @config[:posts]))
+    File.open(File.join(dir, 'index.html'), 'w') do |f|
+      f << generate_page(page)
+    end
+
+    @log.debug("    generated an index for #{dir}")
   end
 
   # Create a news feed of the most recent posts.
@@ -215,6 +230,8 @@ class Turbine
   end
   
   def parse_post(file)
+    @log.debug("    parsing #{file}")
+
     post = YAML.load_file(file)
 
     # Dates should be encoded by path.
@@ -237,5 +254,12 @@ class Turbine
   end
 end
 
-t = Turbine.new(ARGV[0])
-t.generate
+# Iterate over each subsite in the site directory.
+Dir.foreach(ARGV[0]) do |dir|
+  unless ['.', '..', 'css', 'media'].include?(dir)
+    unless dir[0] == ?.
+      t = Turbine.new(dir)
+      t.generate
+    end
+  end
+end

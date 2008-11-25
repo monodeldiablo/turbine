@@ -6,9 +6,11 @@ require 'find'        # directory recursion
 require 'fileutils'   # file manipulation
 require 'yaml'        # journal posts will be YAML files to accommodate metadata
 require 'erb'         # ERB will be used for templating
+require 'time'        # XML formatting for time objects
+require 'cgi'         # HTML escaping
 
 require 'rubygems'
-#require 'feedtools'   # feed generation
+#require 'feedtools'  # feed generation
 require 'rdiscount'   # fast Markdown parsing
 #require 'bluecloth'  # slow Markdown parsing
 #Markdown = BlueCloth
@@ -194,7 +196,44 @@ class Turbine
   end
 
   # Create a news feed of the most recent posts.
+  #
+  # FIXME: This is pathetic that it's easier to do this by hand than use a
+  #        library. Jesus.
   def generate_feed
+    time = Time.utc
+    feed = %q{
+<?xml version="1.0" encoding="utf-8"?>
+
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>#{@config[:feed_title]}</title>
+  <link href="#{@config[:feed_uri]}" rel="self"/>
+  <link href="#{@config[:site_uri]}"/>
+  <updated>#{time.xmlschema}</updated>
+  <author>
+    <name>#{@config[:site_author]}</name>
+    <uri>#{@config[:site_uri]}</uri>
+  </author>
+  <id>#{@config[:feed_uri]}:#{time.to_i}</id>}
+
+    @posts.keys.sort.reverse.each do |date|
+      post = @posts[date]
+
+      feed << %q{
+  <entry>
+    <title>#{post[:title]}</title>
+    <link href="#{@config[:site_uri] + post[:path]}" />
+    <id>#{@config[:site_uri] + post[:path]}</id>
+    <updated>#{date.xmlschema}</updated>
+    <summary>#{CGI::escapeHTML(post[:body])}</summary>
+  </entry>}
+    end
+
+    feed << %q{
+</feed>}
+
+    File.open(File.join(@config[:master_root], @config[:feed_path]), 'w') do |f|
+      f << feed
+    end
   end
 
   # Create a kml of the locations we've visited, with links to posts and

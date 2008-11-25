@@ -154,7 +154,7 @@ class Turbine
   # NOTE: This must be run after Turbine#generate_posts().
   def generate_directory_index(dir)
     @log.debug("    creating an index for #{dir}")
-    link_root = dir.gsub(@config[:master_root], '')
+    link_root = dir.gsub(@config[:master_path], '')
     
     links = {}
 
@@ -200,38 +200,37 @@ class Turbine
   # FIXME: This is pathetic that it's easier to do this by hand than use a
   #        library. Jesus.
   def generate_feed
-    time = Time.utc
-    feed = %q{
-<?xml version="1.0" encoding="utf-8"?>
+    time = Time.now.utc
+    feed = "<?xml version=\"1.0\" encoding=\"utf-8\"?>
 
-<feed xmlns="http://www.w3.org/2005/Atom">
+<feed xmlns=\"http://www.w3.org/2005/Atom\">
   <title>#{@config[:feed_title]}</title>
-  <link href="#{@config[:feed_uri]}" rel="self"/>
-  <link href="#{@config[:site_uri]}"/>
+  <link href=\"#{@config[:feed_uri]}\" rel=\"self\"/>
+  <link href=\"#{@config[:site_uri]}\"/>
   <updated>#{time.xmlschema}</updated>
   <author>
     <name>#{@config[:site_author]}</name>
     <uri>#{@config[:site_uri]}</uri>
   </author>
-  <id>#{@config[:feed_uri]}:#{time.to_i}</id>}
+  <id>#{@config[:feed_uri]}:#{time.to_i}</id>"
 
     @posts.keys.sort.reverse.each do |date|
       post = @posts[date]
 
-      feed << %q{
+      feed << "
   <entry>
     <title>#{post[:title]}</title>
-    <link href="#{@config[:site_uri] + post[:path]}" />
-    <id>#{@config[:site_uri] + post[:path]}</id>
+    <link href=\"#{File.join(@config[:master_uri], post[:path])}\" />
+    <id>#{File.join(@config[:master_uri], post[:path])}</id>
     <updated>#{date.xmlschema}</updated>
-    <summary>#{CGI::escapeHTML(post[:body])}</summary>
-  </entry>}
+    <summary type=\"html\">#{CGI::escapeHTML(post[:body])}</summary>
+  </entry>"
     end
 
-    feed << %q{
-</feed>}
+    feed << "
+</feed>"
 
-    File.open(File.join(@config[:master_root], @config[:feed_path]), 'w') do |f|
+    File.open(File.join(@config[:master_path], @config[:feed_path]), 'w') do |f|
       f << feed
     end
   end

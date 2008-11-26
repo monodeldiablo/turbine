@@ -270,6 +270,7 @@ class Turbine
 
   # Create a map using the KML above.
   def generate_map
+    generate_kml
   end
 
   # Create a gallery of photos.

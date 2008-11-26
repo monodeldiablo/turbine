@@ -235,9 +235,37 @@ class Turbine
     end
   end
 
+  # Create a sitemap for search engine prominence.
+  def generate_sitemap
+  end
+
   # Create a kml of the locations we've visited, with links to posts and
   # possibly photos.
   def generate_kml
+    kml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<kml xmlns=\"http://www.opengis.net/kml/2.2\">
+  <Document>"
+
+    @posts.keys.sort.each do |date|
+      post = @posts[date]
+
+      kml << "
+    <Placemark>
+      <name>#{post[:title]}</name>
+      <description>#{CGI::escapeHTML(post[:body])}</description>
+      <Point>
+        <coordinates>#{post[:longitude]},#{post[:latitude]},#{post[:elevation]}</coordinates>
+      </Point>
+    </Placemark>"
+    end
+
+    kml << "
+  </Document>
+</kml>"
+
+    File.open(File.join(@config[:master_path], @config[:kml_path]), 'w') do |f|
+      f << kml
+    end
   end
 
   # Create a map using the KML above.

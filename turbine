@@ -156,7 +156,7 @@ class Turbine
   # NOTE: This must be run after Turbine#generate_posts().
   def generate_directory_index(dir)
     @log.debug("    creating an index for #{dir}")
-    link_root = dir.gsub(@config[:site_path], '')
+    link_root = dir.gsub(@site_path, @config[:site_path]) 
     
     links = {}
 
@@ -323,7 +323,7 @@ class Turbine
     post[:longitude] = post[:longitude]
     post[:latitude] = post[:latitude]
     post[:body] = Markdown.new(post[:body]).to_html
-    post[:path] = file.gsub(@site_path, '').gsub('.post', '.html') # this is sketchy!
+    post[:path] = file.gsub(@site_path, @config[:site_path]).gsub('.post', '.html') # this is sketchy!
 
     # Stick this in the posts array.
     @posts[post[:date]] = post

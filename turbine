@@ -224,6 +224,7 @@ class Turbine
     <id>#{File.join(@config[:master_uri], post[:path])}</id>
     <updated>#{date.xmlschema}</updated>
     <summary type=\"html\">#{CGI::escapeHTML(post[:body])}</summary>
+    <georss:point>#{post[:latitude]},#{post[:longitude]}</georss:point>
   </entry>"
     end
 

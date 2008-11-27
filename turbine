@@ -44,9 +44,11 @@ class Turbine
   attr_accessor :site_path
 
   def initialize(site_path)
+    @log = Logger.new(STDOUT)
+    @log.debug("Running Turbine in #{site_path}")
+
     @site_path = File.expand_path(site_path)
     @config = YAML.load_file(File.join(@site_path, 'site.config'))
-    @log = Logger.new(STDOUT)
 
     if $options[:verbose]
       @log.level = Logger::DEBUG
@@ -133,7 +135,7 @@ class Turbine
   # NOTE: This *must* be run after Turbine#generate_posts().
   def generate_index
     page = {}
-    page[:title] = nil # "The misadventures of two fish out of water"
+    page[:title] = nil
     page[:body] = ""
     
     @posts.keys.sort.reverse.each_with_index do |date, i|
@@ -154,7 +156,7 @@ class Turbine
   # NOTE: This must be run after Turbine#generate_posts().
   def generate_directory_index(dir)
     @log.debug("    creating an index for #{dir}")
-    link_root = dir.gsub(@config[:master_path], '')
+    link_root = dir.gsub(@config[:site_path], '')
     
     links = {}
 
@@ -162,12 +164,12 @@ class Turbine
     Dir.foreach(dir) do |entry|
       unless ['.', '..'].include?(entry)
         if File.directory?(File.join(dir, entry))
-          @log.debug("      adding entry for #{entry}")
+          #@log.debug("      adding entry for #{entry}")
           links[entry] = File.join(link_root, entry)
         end
         
         if entry =~ /(\d{2})(\d{2})\.post/
-          @log.debug("      adding entry for #{entry}")
+          #@log.debug("      adding entry for #{entry}")
           links["#{$1}:#{$2}"] = File.join(link_root, entry.gsub('post', 'html'))
         end
       end
@@ -192,7 +194,7 @@ class Turbine
       f << generate_page(page)
     end
 
-    @log.debug("    generated an index for #{dir}")
+    #@log.debug("    generated an index for #{dir}")
   end
 
   # Create a news feed of the most recent posts.
@@ -203,7 +205,8 @@ class Turbine
     time = Time.now.utc
     feed = "<?xml version=\"1.0\" encoding=\"utf-8\"?>
 
-<feed xmlns=\"http://www.w3.org/2005/Atom\">
+<feed xmlns=\"http://www.w3.org/2005/Atom\"
+      xmlns:georss=\"http://www.georss.org/georss\">
   <title>#{@config[:feed_title]}</title>
   <link href=\"#{@config[:feed_uri]}\" rel=\"self\"/>
   <link href=\"#{@config[:site_uri]}\"/>
@@ -220,8 +223,11 @@ class Turbine
       feed << "
   <entry>
     <title>#{post[:title]}</title>
-    <link href=\"#{File.join(@config[:master_uri], post[:path])}\" />
-    <id>#{File.join(@config[:master_uri], post[:path])}</id>
+    <link href=\"#{File.join(@config[:site_uri], post[:path])}\" />
+    <id>#{File.join(@config[:site_uri], post[:path])}</id>
+    <author>
+      <name>#{post[:author]}</name>
+    </author>
     <updated>#{date.xmlschema}</updated>
     <summary type=\"html\">#{CGI::escapeHTML(post[:body])}</summary>
     <georss:point>#{post[:latitude]},#{post[:longitude]}</georss:point>
@@ -231,7 +237,8 @@ class Turbine
     feed << "
 </feed>"
 
-    File.open(File.join(@config[:master_path], @config[:feed_path]), 'w') do |f|
+    @log.debug("  writing feed to #{File.join(@site_path, @config[:feed_path])}")
+    File.open(File.join(@site_path, @config[:feed_path]), 'w') do |f|
       f << feed
     end
   end
@@ -240,6 +247,7 @@ class Turbine
   def generate_sitemap
   end
 
+=begin
   # Create a kml of the locations we've visited, with links to posts and
   # possibly photos.
   def generate_kml
@@ -264,14 +272,16 @@ class Turbine
   </Document>
 </kml>"
 
-    File.open(File.join(@config[:master_path], @config[:kml_path]), 'w') do |f|
+    File.open(File.join(@site_path, @config[:kml_path]), 'w') do |f|
       f << kml
     end
   end
+=end
 
   # Create a map using the KML above.
+  #
+  # NOTE: The feed must have been generated for the map to display correctly.
   def generate_map
-    generate_kml
   end
 
   # Create a gallery of photos.
@@ -313,7 +323,7 @@ class Turbine
     post[:longitude] = post[:longitude]
     post[:latitude] = post[:latitude]
     post[:body] = Markdown.new(post[:body]).to_html
-    post[:path] = file.split('washedup')[1].gsub('.post', '.html') # this is sketchy!
+    post[:path] = file.gsub(@site_path, '').gsub('.post', '.html') # this is sketchy!
 
     # Stick this in the posts array.
     @posts[post[:date]] = post
@@ -324,9 +334,9 @@ end
 
 # Iterate over each subsite in the site directory.
 Dir.foreach(ARGV[0]) do |dir|
-  unless ['.', '..', 'css', 'media'].include?(dir)
+  unless ['.', '..', 'css', 'js', 'media'].include?(dir)
     unless dir[0] == ?.
-      t = Turbine.new(dir)
+      t = Turbine.new(File.join(ARGV[0], dir))
       t.generate
     end
   end

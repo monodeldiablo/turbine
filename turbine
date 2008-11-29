@@ -229,7 +229,7 @@ class Turbine
       <name>#{post[:author]}</name>
     </author>
     <updated>#{date.xmlschema}</updated>
-    <summary type=\"html\">#{CGI::escapeHTML(post[:body])}</summary>
+    <summary type=\"html\">#{CGI::escapeHTML(post[:excerpt])}</summary>
     <georss:point>#{post[:latitude]},#{post[:longitude]}</georss:point>
   </entry>"
     end
@@ -261,7 +261,7 @@ class Turbine
       kml << "
     <Placemark>
       <name>#{post[:title]}</name>
-      <description>#{CGI::escapeHTML(post[:body])}</description>
+      <description>#{CGI::escapeHTML(post[:excerpt])}</description>
       <Point>
         <coordinates>#{post[:longitude]},#{post[:latitude]},#{post[:elevation]}</coordinates>
       </Point>
@@ -294,6 +294,8 @@ class Turbine
   end
 
   def generate_post(post)
+    post[:body] = post[:excerpt] << post[:body]
+
     # Wrap with the post template.
     return ERB.new(@post_template).result(binding)
   end
@@ -322,6 +324,7 @@ class Turbine
     post[:title] = post[:title] # why not?
     post[:longitude] = post[:longitude]
     post[:latitude] = post[:latitude]
+    post[:excerpt] = Markdown.new(post[:excerpt]).to_html
     post[:body] = Markdown.new(post[:body]).to_html
     post[:path] = file.gsub(@site_path, @config[:site_path]).gsub('.post', '.html') # this is sketchy!
 

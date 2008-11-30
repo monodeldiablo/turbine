@@ -66,6 +66,16 @@ class Turbine
       @post_template = f.read
     end
 
+    # Load the site feed template.
+    File.open(File.join(@site_path, @config[:feed_template])) do |f|
+      @feed_template = f.read
+    end
+
+    # Load the site gallery template.
+    File.open(File.join(@site_path, @config[:gallery_template])) do |f|
+      @gallery_template = f.read
+    end
+
     # Initialize the posts hash.
     @posts = {}
   end
@@ -79,7 +89,7 @@ class Turbine
     generate_index
     generate_feed
     generate_map
-    generate_gallery
+    generate_gallery_index
   end
 
   private
@@ -102,7 +112,7 @@ class Turbine
   # Create journal posts and archival indices by traversing the posts
   # directory.
   def generate_posts
-    posts_dir = File.join(@site_path, @config[:posts])
+    posts_dir = File.join(@site_path, @config[:post_path])
     @log.debug("  parsing the posts in #{posts_dir}")
     
     Find.find(posts_dir) do |path|
@@ -180,7 +190,7 @@ class Turbine
 
     # If we're at the top of the 'posts' directory, assign the page the title
     # of @config[:archive_title].
-    if File.join(@site_path, @config[:posts]) == dir
+    if File.join(@site_path, @config[:post_path]) == dir
       page[:title] = @config[:archive_title]
     else
       page[:title] = File.basename(dir)
@@ -197,49 +207,42 @@ class Turbine
     #@log.debug("    generated an index for #{dir}")
   end
 
-  # Create a news feed of the most recent posts.
-  #
-  # FIXME: This is pathetic that it's easier to do this by hand than use a
-  #        library. Jesus.
-  def generate_feed
-    time = Time.now.utc
-    feed = "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+  # Create an index of all the galleries on the site.
+  def generate_gallery_index
+    galleries_dir = File.join(@site_path, @config[:gallery_path])
+    photo_root = File.join(@config[:site_path], @config[:photo_path])
+    @log.debug("  generating the gallery index")
 
-<feed xmlns=\"http://www.w3.org/2005/Atom\"
-      xmlns:georss=\"http://www.georss.org/georss\">
-  <title>#{@config[:feed_title]}</title>
-  <link href=\"#{@config[:feed_uri]}\" rel=\"self\"/>
-  <link href=\"#{@config[:site_uri]}\"/>
-  <updated>#{time.xmlschema}</updated>
-  <author>
-    <name>#{@config[:site_author]}</name>
-    <uri>#{@config[:site_uri]}</uri>
-  </author>
-  <id>#{@config[:feed_uri]}:#{time.to_i}</id>"
+    Find.find(galleries_dir) do |path|
+      if path =~ /\w+\.gallery/
+        gallery = YAML.load_file(path)
 
-    @posts.keys.sort.reverse.each do |date|
-      post = @posts[date]
+        gallery[:photos].each_with_index do |photo_path, i|
+          desc_file = "#{photo_path.split('.')[0]}.description"
+          gallery[:photos][i] = YAML.load_file(File.join(@config[:master_path], photo_root, desc_file))
+          gallery[:photos][i][:path] = File.join(photo_root, photo_path)
+          gallery[:photos][i][:thumb] = File.join(photo_root, File.dirname(photo_path), gallery[:photos][i][:thumb])
+        end
 
-      feed << "
-  <entry>
-    <title>#{post[:title]}</title>
-    <link href=\"#{File.join(@config[:site_uri], post[:path])}\" />
-    <id>#{File.join(@config[:site_uri], post[:path])}</id>
-    <author>
-      <name>#{post[:author]}</name>
-    </author>
-    <updated>#{date.xmlschema}</updated>
-    <summary type=\"html\">#{CGI::escapeHTML(post[:excerpt])}</summary>
-    <georss:point>#{post[:latitude]},#{post[:longitude]}</georss:point>
-  </entry>"
+        # Sort the images in chronological order.
+        gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
+
+        File.open(path.gsub('gallery', 'html'), 'w') do |f|
+          page = {}
+          page[:title] = gallery[:title]
+          page[:body] = generate_gallery(gallery)
+
+          f << generate_page(page)
+        end
+      end
     end
+  end
 
-    feed << "
-</feed>"
-
+  # Create a news feed of the most recent posts.
+  def generate_feed
     @log.debug("  writing feed to #{File.join(@site_path, @config[:feed_path])}")
     File.open(File.join(@site_path, @config[:feed_path]), 'w') do |f|
-      f << feed
+      f << ERB.new(@feed_template).result(binding)
     end
   end
 
@@ -247,45 +250,16 @@ class Turbine
   def generate_sitemap
   end
 
-=begin
-  # Create a kml of the locations we've visited, with links to posts and
-  # possibly photos.
-  def generate_kml
-    kml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<kml xmlns=\"http://www.opengis.net/kml/2.2\">
-  <Document>"
-
-    @posts.keys.sort.each do |date|
-      post = @posts[date]
-
-      kml << "
-    <Placemark>
-      <name>#{post[:title]}</name>
-      <description>#{CGI::escapeHTML(post[:excerpt])}</description>
-      <Point>
-        <coordinates>#{post[:longitude]},#{post[:latitude]},#{post[:elevation]}</coordinates>
-      </Point>
-    </Placemark>"
-    end
-
-    kml << "
-  </Document>
-</kml>"
-
-    File.open(File.join(@site_path, @config[:kml_path]), 'w') do |f|
-      f << kml
-    end
-  end
-=end
-
-  # Create a map using the KML above.
+  # Create a map using the GeoRSS-enabled feed.
   #
   # NOTE: The feed must have been generated for the map to display correctly.
   def generate_map
   end
 
   # Create a gallery of photos.
-  def generate_gallery
+  def generate_gallery(gallery)
+    # Wrap with the gallery template.
+    return ERB.new(@gallery_template).result(binding)
   end
 
   def generate_page(page)
@@ -294,7 +268,7 @@ class Turbine
   end
 
   def generate_post(post)
-    post[:body] = post[:excerpt] << post[:body]
+    post[:body] = post[:body]
 
     # Wrap with the post template.
     return ERB.new(@post_template).result(binding)
@@ -324,8 +298,19 @@ class Turbine
     post[:title] = post[:title] # why not?
     post[:longitude] = post[:longitude]
     post[:latitude] = post[:latitude]
-    post[:excerpt] = Markdown.new(post[:excerpt]).to_html
-    post[:body] = Markdown.new(post[:body]).to_html
+    
+    if post[:excerpt]
+      post[:excerpt] = Markdown.new(post[:excerpt]).to_html
+    else
+      post[:excerpt] = ''
+    end
+
+    if post[:body]
+      post[:body] = Markdown.new(post[:body]).to_html
+    else
+      post[:body] = ''
+    end
+
     post[:path] = file.gsub(@site_path, @config[:site_path]).gsub('.post', '.html') # this is sketchy!
 
     # Stick this in the posts array.

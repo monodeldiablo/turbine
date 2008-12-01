@@ -152,6 +152,13 @@ class Turbine
       if i >= @config[:front_page_entries]
         break
       else
+        post = @posts[date]
+        
+        # Don't post the whole thing on the front page.
+        unless post[:excerpt].nil?
+          post[:body] = ''
+        end
+
         page[:body] << generate_post(@posts[date])
       end
     end
@@ -211,7 +218,10 @@ class Turbine
   def generate_gallery_index
     galleries_dir = File.join(@site_path, @config[:gallery_path])
     photo_root = File.join(@config[:site_path], @config[:photo_path])
+
     @log.debug("  generating the gallery index")
+
+    links = {}
 
     Find.find(galleries_dir) do |path|
       if path =~ /\w+\.gallery/
@@ -219,7 +229,7 @@ class Turbine
 
         gallery[:photos].each_with_index do |photo_path, i|
           desc_file = "#{photo_path.split('.')[0]}.description"
-          gallery[:photos][i] = YAML.load_file(File.join(@config[:master_path], photo_root, desc_file))
+          gallery[:photos][i] = YAML.load_file(File.join(@site_path, @config[:photo_path], desc_file))
           gallery[:photos][i][:path] = File.join(photo_root, photo_path)
           gallery[:photos][i][:thumb] = File.join(photo_root, File.dirname(photo_path), gallery[:photos][i][:thumb])
         end
@@ -227,14 +237,30 @@ class Turbine
         # Sort the images in chronological order.
         gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
 
-        File.open(path.gsub('gallery', 'html'), 'w') do |f|
+        gallery_path = path.gsub('gallery', 'html')
+
+        File.open(gallery_path, 'w') do |f|
           page = {}
-          page[:title] = gallery[:title]
+          page[:title] = gallery[:name]
           page[:body] = generate_gallery(gallery)
 
           f << generate_page(page)
         end
+
+        links[gallery[:name]] = gallery_path.gsub(@site_path, @config[:site_path])
       end
+    end
+
+    page = {}
+    page[:title] = @config[:gallery_title]
+    page[:body] = ""
+
+    links.keys.sort.each do |k|
+      page[:body] << "<h3><a href='#{links[k]}'>#{k}</a></h3>"
+    end
+
+    File.open(File.join(@site_path, @config[:gallery_path], 'index.html'), 'w') do |f|
+      f << generate_page(page)
     end
   end
 

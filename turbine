@@ -348,7 +348,7 @@ end
 
 # Iterate over each subsite in the site directory.
 Dir.foreach(ARGV[0]) do |dir|
-  unless ['.', '..', 'css', 'js', 'media'].include?(dir)
+  unless ['.', '..', 'css', 'js', 'media', 'TODO'].include?(dir)
     unless dir[0] == ?.
       t = Turbine.new(File.join(ARGV[0], dir))
       t.generate

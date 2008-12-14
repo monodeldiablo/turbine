@@ -238,7 +238,7 @@ class Turbine
         gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
 
         # Mark up the description text.
-        gallery[:description] = Markdown.new(gallery[:description]).to_haml
+        gallery[:description] = Markdown.new(gallery[:description]).to_html
 
         # Pick the name for the result file.
         gallery_path = path.gsub('gallery', 'html')

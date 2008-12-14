@@ -234,9 +234,13 @@ class Turbine
           gallery[:photos][i][:thumb] = File.join(photo_root, File.dirname(photo_path), gallery[:photos][i][:thumb])
         end
 
-        # Sort the images in chronological order.
+        # Sort the images in chronological (alphabetical) order.
         gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
 
+        # Mark up the description text.
+        gallery[:description] = Markdown.new(gallery[:description]).to_haml
+
+        # Pick the name for the result file.
         gallery_path = path.gsub('gallery', 'html')
 
         File.open(gallery_path, 'w') do |f|

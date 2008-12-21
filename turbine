@@ -235,7 +235,7 @@ class Turbine
         end
 
         # Sort the images in chronological (alphabetical) order.
-        gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
+        #gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
 
         # Mark up the description text.
         gallery[:description] = Markdown.new(gallery[:description]).to_html

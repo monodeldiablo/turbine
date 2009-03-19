@@ -84,8 +84,12 @@ class Turbine
   def generate
     @log.debug("Generating a site in #{@site_path}...")
 
+    posts_dir = File.join(@site_path, @config[:post_path])
+    staging_dir = File.join(@site_path, @config[:staging_path])
+
     generate_pages
-    generate_posts
+    generate_posts(posts_dir)
+    generate_posts(staging_dir)
     generate_index
     generate_feed
     generate_map
@@ -111,8 +115,7 @@ class Turbine
 
   # Create journal posts and archival indices by traversing the posts
   # directory.
-  def generate_posts
-    posts_dir = File.join(@site_path, @config[:post_path])
+  def generate_posts(posts_dir)
     @log.debug("  parsing the posts in #{posts_dir}")
     
     Find.find(posts_dir) do |path|
@@ -317,12 +320,13 @@ class Turbine
     @log.debug("    parsing #{file}")
 
     post = YAML.load_file(file)
+    current_time = Time.now
 
     # Dates should be encoded by path.
     if file =~ /\w+\/(\d+)\/(\d+)\/(\d+)\/(\d{2})(\d{2})\.post/
       post[:date] = Time.utc($1, $2, $3, $4, $5)
     else
-      post[:date] = Time.now
+      post[:date] = current_time
     end
     
     post[:title] = post[:title] # why not?
@@ -343,8 +347,11 @@ class Turbine
 
     post[:path] = file.gsub(@site_path, @config[:site_path]).gsub('.post', '.html') # this is sketchy!
 
-    # Stick this in the posts array.
-    @posts[post[:date]] = post
+    # Stick this in the posts array, unless it was not located in a
+    # date-encoded path (such as a staging directory).
+    unless post[:date] == current_time
+      @posts[post[:date]] = post
+    end
 
     return post
   end

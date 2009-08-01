@@ -358,7 +358,7 @@ class Turbine
 end
 
 # Figure out which directories and files to ignore.
-ignore = ['.', '..']
+ignore = ['.', '..', 'turbine.ignore']
 
 begin
   ignore.concat(YAML.load_file("#{ARGV[0]}/turbine.ignore"))

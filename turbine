@@ -220,54 +220,57 @@ class Turbine
   # Create an index of all the galleries on the site.
   def generate_gallery_index
     galleries_dir = File.join(@site_path, @config[:gallery_path])
-    photo_root = File.join(@config[:site_path], @config[:photo_path])
 
-    @log.debug("  generating the gallery index")
+    if File.exist?(galleries_dir)
+      photo_root = File.join(@config[:site_path], @config[:photo_path])
 
-    links = {}
+      @log.debug("  generating the gallery index")
 
-    Find.find(galleries_dir) do |path|
-      if path =~ /\w+\.gallery/
-        gallery = YAML.load_file(path)
+      links = {}
 
-        gallery[:photos].each_with_index do |photo_path, i|
-          desc_file = "#{photo_path.split('.')[0]}.description"
-          gallery[:photos][i] = YAML.load_file(File.join(@site_path, @config[:photo_path], desc_file))
-          gallery[:photos][i][:path] = File.join(photo_root, photo_path)
-          gallery[:photos][i][:thumb] = File.join(photo_root, File.dirname(photo_path), gallery[:photos][i][:thumb])
+      Find.find(galleries_dir) do |path|
+        if path =~ /\w+\.gallery/
+          gallery = YAML.load_file(path)
+
+          gallery[:photos].each_with_index do |photo_path, i|
+            desc_file = "#{photo_path.split('.')[0]}.description"
+            gallery[:photos][i] = YAML.load_file(File.join(@site_path, @config[:photo_path], desc_file))
+            gallery[:photos][i][:path] = File.join(photo_root, photo_path)
+            gallery[:photos][i][:thumb] = File.join(photo_root, File.dirname(photo_path), gallery[:photos][i][:thumb])
+          end
+
+          # Sort the images in chronological (alphabetical) order.
+          #gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
+
+          # Mark up the description text.
+          gallery[:description] = Markdown.new(gallery[:description]).to_html
+
+          # Pick the name for the result file.
+          gallery_path = path.gsub('gallery', 'html')
+
+          File.open(gallery_path, 'w') do |f|
+            page = {}
+            page[:title] = gallery[:name]
+            page[:body] = generate_gallery(gallery)
+
+            f << generate_page(page)
+          end
+
+          links[gallery[:name]] = gallery_path.gsub(@site_path, @config[:site_path])
         end
-
-        # Sort the images in chronological (alphabetical) order.
-        #gallery[:photos].sort! {|x,y| x[:path] <=> y[:path]}
-
-        # Mark up the description text.
-        gallery[:description] = Markdown.new(gallery[:description]).to_html
-
-        # Pick the name for the result file.
-        gallery_path = path.gsub('gallery', 'html')
-
-        File.open(gallery_path, 'w') do |f|
-          page = {}
-          page[:title] = gallery[:name]
-          page[:body] = generate_gallery(gallery)
-
-          f << generate_page(page)
-        end
-
-        links[gallery[:name]] = gallery_path.gsub(@site_path, @config[:site_path])
       end
-    end
 
-    page = {}
-    page[:title] = @config[:gallery_title]
-    page[:body] = ""
+      page = {}
+      page[:title] = @config[:gallery_title]
+      page[:body] = ""
 
-    links.keys.sort.each do |k|
-      page[:body] << "<h3><a href='#{links[k]}'>#{k}</a></h3>"
-    end
+      links.keys.sort.each do |k|
+        page[:body] << "<h3><a href='#{links[k]}'>#{k}</a></h3>"
+      end
 
-    File.open(File.join(@site_path, @config[:gallery_path], 'index.html'), 'w') do |f|
-      f << generate_page(page)
+      File.open(File.join(@site_path, @config[:gallery_path], 'index.html'), 'w') do |f|
+        f << generate_page(page)
+      end
     end
   end
 

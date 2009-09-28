@@ -304,7 +304,7 @@ class Turbine
   end
 
   def generate_post(post)
-    post[:body] = post[:body]
+    post[:body] = post[:body].force_encoding('UTF-8')
 
     # Wrap with the post template.
     return ERB.new(@post_template).result(binding)
@@ -313,8 +313,12 @@ class Turbine
   def parse_page(file)
     page = YAML.load_file(file)
 
-    page[:title] = page[:title]
-    page[:body] = Markdown.new(page[:body]).to_html
+    unless page[:title]
+      page[:title] = ""
+    end
+
+    page[:title] = page[:title].force_encoding('UTF-8')
+    page[:body] = Markdown.new(page[:body]).to_html.force_encoding('UTF-8')
 
     return page
   end
@@ -332,18 +336,22 @@ class Turbine
       post[:date] = current_time
     end
     
-    post[:title] = post[:title] # why not?
+    unless post[:title]
+      post[:title] = ""
+    end
+
+    post[:title] = post[:title].force_encoding('UTF-8') # why not?
     post[:longitude] = post[:longitude]
     post[:latitude] = post[:latitude]
     
     if post[:excerpt]
-      post[:excerpt] = Markdown.new(post[:excerpt]).to_html
+      post[:excerpt] = Markdown.new(post[:excerpt]).to_html.force_encoding('UTF-8')
     else
       post[:excerpt] = ''
     end
 
     if post[:body]
-      post[:body] = Markdown.new(post[:body]).to_html
+      post[:body] = Markdown.new(post[:body]).to_html.force_encoding('UTF-8')
     else
       post[:body] = ''
     end

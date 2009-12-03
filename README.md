@@ -1,5 +1,5 @@
-Turbine - The static web generator with *heart*
-===============================================
+Turbine - The coolest static web generator *ever*
+=================================================
 
 What is Turbine?
 ----------------

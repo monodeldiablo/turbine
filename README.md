@@ -25,3 +25,8 @@ an index of the most recent N posts, creates an archive of all posts, generates
 a feed from the most recent N posts, then exits.
 
 Easy.
+
+How complete is Turbine?
+------------------------
+Not very. It's something of a project-in-progress, and documentation is,
+obviously, very lacking. Feedback and help would be much appreciated.

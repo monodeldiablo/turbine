@@ -15,12 +15,12 @@ shy if you feel like helping out...
 How does it work?
 -----------------
 To design Turbine, I started with an approach that some people would call
-backwards. I first began with how I wanted the *source* tree to look, since
-that is where I spend most of my time, then wrangled with Turbine to make the
-final result similarly sane. Because of this, posts are simple (YAML for
-metadata and Markdown for content), configuration is easier (all YAML, only one
-file per site), directories are sane and flexible, and everything is easily
-versioned.
+backwards. I first began with how I wanted the *source* tree of a website to
+look, since that is where I spend most of my time, then wrangled with Turbine
+to make the final result similarly sane. Because of this, posts are simple
+(YAML for metadata and Markdown for content), configuration is easier (all
+YAML, only one file per site), directories are flat and flexible, and
+everything is easily versioned as small, simple text files.
 
 When Turbine is executed, it's pointed to the top-level directory of your site
 source. Turbine then opens up a file named "turbine.ignore" (if it exists, of
